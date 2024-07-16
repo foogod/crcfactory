@@ -22,6 +22,7 @@
 #ifndef __CRCFACTORY_H__
 #define __CRCFACTORY_H__
 
+#include <limits.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -101,10 +102,13 @@ CRCFACTORY_INLINE CRCFACTORY_CRC_TYPE _crcfactory_mask(int width, bool reflected
     if (!reflected && width <= 8) {
         return value & 0xff;
     }
-    // The following if statement is due to a bug under x86_64:
-    // "1ULL << 64" evaluates to 0 (expected), but
-    // "1ULL << x" when x==64 evaluates to 1 (wrong).
-    if ((1ULL << width) == 1) return value;
+
+    // Avoid undefined behavior if a shift to generate the mask would exceed
+    // the size of the type. Just return the value unmasked, since the mask
+    // would cover all bits anyway. Strictly speaking we probably want a
+    // limits-based check here in case CRC_TYPE is signed, but signed types
+    // would likely break other things anyway.
+    if ((size_t)width >= (CHAR_BIT * sizeof(CRCFACTORY_CRC_TYPE))) return value;
     return value & ((1ULL << width) - 1);
 }
 
